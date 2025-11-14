@@ -453,25 +453,99 @@ const App = () => {
       showMessage(t('selectStartAndDest'));
       return;
     }
-    let fullPath = [];
-    let currentStart = startPoint;
-    let pathFound = true;
-    const sortedDests = [...destinations].sort((a,b) => a.floor - b.floor);
-    for (const dest of sortedDests) {
-      const destPoint = { x: dest.x + dest.door.x, y: dest.y + dest.door.y, floor: dest.floor };
-      const segment = findPath(currentStart, destPoint);
-      if (segment) {
-        fullPath = fullPath.length === 0 ? segment : fullPath.concat(segment.slice(1));
-        currentStart = destPoint;
-      } else {
-        pathFound = false;
-        break;
-      }
+
+    if (destinations.length === 1) {
+        const dest = destinations[0];
+        const destPoint = { x: dest.x + dest.door.x, y: dest.y + dest.door.y, floor: dest.floor };
+        const segment = findPath(startPoint, destPoint);
+        if (segment) {
+            setPath(segment);
+        } else {
+            setPath(null);
+            showMessage(t('routeNotFound'));
+        }
+        return;
     }
-    if (pathFound) setPath(fullPath);
-    else {
-      setPath(null);
-      showMessage(t('routeNotFound'));
+
+    const pointsOfInterest = [
+        { id: 'start', point: startPoint },
+        ...destinations.map(d => ({ id: d.id, point: { x: d.x + d.door.x, y: d.y + d.door.y, floor: d.floor } }))
+    ];
+
+    const pathCache = new Map();
+
+    for (let i = 0; i < pointsOfInterest.length; i++) {
+        for (let j = i + 1; j < pointsOfInterest.length; j++) {
+            const p1 = pointsOfInterest[i];
+            const p2 = pointsOfInterest[j];
+            const pathForward = findPath(p1.point, p2.point);
+            pathCache.set(`${p1.id}-${p2.id}`, pathForward);
+            const pathBackward = findPath(p2.point, p1.point);
+            pathCache.set(`${p2.id}-${p1.id}`, pathBackward);
+        }
+    }
+
+    const getPermutations = (inputArray) => {
+      const result = [];
+      const permute = (arr, memo = []) => {
+        if (arr.length === 0) {
+          result.push(memo);
+        } else {
+          for (let i = 0; i < arr.length; i++) {
+            let curr = arr.slice();
+            let next = curr.splice(i, 1);
+            permute(curr.slice(), memo.concat(next));
+          }
+        }
+      };
+      permute(inputArray);
+      return result;
+    };
+
+    const destinationPermutations = getPermutations(destinations);
+    let shortestPath = null;
+    let minDistance = Infinity;
+
+    for (const perm of destinationPermutations) {
+        let currentFullTour = [];
+        let currentTourDistance = 0;
+        let lastPointId = 'start';
+        let tourIsPossible = true;
+
+        const firstSegment = pathCache.get(`${lastPointId}-${perm[0].id}`);
+        if (!firstSegment) {
+            tourIsPossible = false;
+            break;
+        }
+        currentFullTour.push(...firstSegment);
+        currentTourDistance += firstSegment.length;
+        lastPointId = perm[0].id;
+
+        for (let i = 0; i < perm.length - 1; i++) {
+            const fromDestId = perm[i].id;
+            const toDestId = perm[i+1].id;
+            const segment = pathCache.get(`${fromDestId}-${toDestId}`);
+            if (!segment) {
+                tourIsPossible = false;
+                break;
+            }
+            currentFullTour.push(...segment.slice(1));
+            currentTourDistance += segment.length;
+        }
+        
+        if (!tourIsPossible) continue;
+
+        if (currentTourDistance < minDistance) {
+            minDistance = currentTourDistance;
+            shortestPath = currentFullTour;
+        }
+    }
+
+    if (shortestPath) {
+        setPath(shortestPath);
+    } else {
+        setPath(null);
+        showMessage(t('routeNotFound'));
     }
   }, [startPoint, destinations, t]);
 
