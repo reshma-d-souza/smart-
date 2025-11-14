@@ -117,6 +117,7 @@ const TRANSLATIONS = {
   firstFloor: { en: 'First Floor', kn: 'ಮೊದಲ ಮಹಡಿ' },
   secondFloor: { en: 'Second Floor', kn: 'ಎರಡನೇ ಮಹಡಿ' },
   thirdFloor: { en: 'Third Floor', kn: 'ಮೂರನೇ ಮಹಡಿ' },
+  givingDirectionsFrom: { en: 'Giving directions from:', kn: 'ಇಲ್ಲಿಂದ ನಿರ್ದೇಶನಗಳು:' },
   walkForward: { en: 'Walk forward', kn: 'ಮುಂದೆ ನಡೆಯಿರಿ' },
   turnLeft: { en: 'Turn left', kn: 'ಎಡಕ್ಕೆ ತಿರುಗಿ' },
   turnRight: { en: 'Turn right', kn: 'ಬಲಕ್ಕೆ ತಿರುಗಿ' },
@@ -210,11 +211,12 @@ const findPath = (() => {
 
 // --- REACT COMPONENTS ---
 
-const StoreMap = ({ stores, path, startPoint, destinations, onMapClick, selectedStoreId }) => {
+const StoreMap = ({ stores, path, startPoint, destinations, onMapClick, selectedStoreId, shopkeeperStoreId }) => {
   const destinationIds = new Set(destinations.map(d => d.id));
   const getCellColor = (store) => {
     if (selectedStoreId === store.id) return 'bg-blue-400 dark:bg-blue-600';
     if (destinationIds.has(store.id)) return 'bg-yellow-400 dark:bg-yellow-600';
+    if (shopkeeperStoreId === store.id) return 'bg-emerald-400 dark:bg-emerald-600';
     switch (store.category) {
       case Category.Fashion: return 'bg-pink-200 dark:bg-pink-800';
       case Category.Footwear: return 'bg-indigo-200 dark:bg-indigo-800';
@@ -346,6 +348,12 @@ const ControlPanel = ({
               </optgroup>
             ))}
           </select>
+          {shopkeeperStoreId && (
+            <p className="text-xs text-center text-gray-500 dark:text-gray-400 mt-2">
+              {t('givingDirectionsFrom')}{' '}
+              <strong>{STORES.find(s => s.id === shopkeeperStoreId)?.name}</strong>
+            </p>
+          )}
         </div>
       ) : (
         <div>
@@ -671,6 +679,7 @@ const App = () => {
               destinations={destinations}
               onMapClick={handleMapClick}
               selectedStoreId={selectedStoreId}
+              shopkeeperStoreId={isShopkeeperMode ? shopkeeperStoreId : null}
             />
         </div>
       </div>
